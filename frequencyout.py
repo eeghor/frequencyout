@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
-from collections import defaultdict, Counter
+import copy
+from collections import Counter
+from itertools import combinations
 import time
 
 
@@ -15,8 +17,15 @@ class SPAD:
 
     def fit(self, X: pd.DataFrame = None):
 
-        self.counts = {c: Counter(X[c]) for c in X.columns}
-        self.n = len(X)
+        X_ = copy.deepcopy(X)
+
+        for pair in combinations(X.columns, 2):
+            X_["+".join(pair)] = X[pair[0]].astype(str) + "|" + X[pair[1]].astype(str)
+            
+        print(X_.head())
+
+        self.counts = {c: Counter(X_[c]) for c in X_.columns}
+        self.n = len(X_)
 
         return self
 
@@ -42,6 +51,7 @@ class SPAD:
 class HBOS:
     """
     Histogram-Based Outlier Score
+    performs well on global anomaly detection problems but cannot detect local outliers.
 
     returns a series of scores; the larger the score the more an outlier
     """
