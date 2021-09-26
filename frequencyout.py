@@ -6,6 +6,35 @@ from itertools import combinations
 import time
 
 
+class CategoricalHistogramBasedDetector:
+    """
+    Histogram-Based Outlier/Anomaly Detector
+    """
+
+    def __init__(self, score_type: str = None, combination_size: int = 2) -> None:
+
+        self.score_type = score_type
+        self.combination_size = combination_size
+
+    def fit(self, X: pd.DataFrame = None):
+
+        self.feature_names = sorted(X.columns)
+
+        X = X.assign(
+            **{
+                "+".join(combination): X[combination[0]].astype(str)
+                + "|"
+                + X[combination[1]].astype(str)
+                for combination in combinations(self.feature_names, self.combination_size)
+            }
+        )
+
+        print(X.columns)
+        print(X.head())
+
+        return self
+
+
 class SPAD:
     """
     Simple Probabilistic Anomaly Detector
@@ -15,13 +44,13 @@ class SPAD:
     def get_name(cls):
         return cls.__name__
 
-    def fit(self, X: pd.DataFrame = None):
+    def fit(self, X: pd.DataFrame = None, plus: bool = False):
 
         X_ = copy.deepcopy(X)
 
         for pair in combinations(X.columns, 2):
             X_["+".join(pair)] = X[pair[0]].astype(str) + "|" + X[pair[1]].astype(str)
-            
+
         print(X_.head())
 
         self.counts = {c: Counter(X_[c]) for c in X_.columns}
@@ -127,3 +156,6 @@ if __name__ == "__main__":
     print(f"trained on {n_train:,} samples")
     print(f"predictions on {n_test:,} samples")
     print(f"elapsed time: {time.time() - t_start: .4f} sec")
+
+    chbd = CategoricalHistogramBasedDetector()
+    print(chbd.fit(X_train))
