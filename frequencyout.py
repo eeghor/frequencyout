@@ -1,118 +1,127 @@
-import pandas as pd
-import numpy as np
-import copy
+import pandas as pd  # type:ignore
+import numpy as np  # type:ignore
 from collections import Counter
 from itertools import combinations
 import time
+from typing import Literal, Dict
 
 
 class CategoricalHistogramBasedDetector:
-    """
-    Histogram-Based Outlier/Anomaly Detector
-    """
-
-    def __init__(self, score_type: str = None, combination_size: int = 2) -> None:
+    def __init__(
+        self, score_type: Literal["spad", "hbos"] = None, combination_size: int = 2
+    ) -> None:
 
         self.score_type = score_type
         self.combination_size = combination_size
 
-    def fit(self, X: pd.DataFrame = None):
+    def __add_combined_features(self, X: pd.DataFrame) -> pd.DataFrame:
 
-        self.feature_names = sorted(X.columns)
+        """
+        Parameters
+        ----------
+        X : data frame where every column is a categorical feature
 
-        X = X.assign(
+        Returns
+        -------
+        original data frame with new columns with combinations
+        of categorical features
+        """
+
+        return X.assign(
             **{
                 "+".join(combination): X[combination[0]].astype(str)
                 + "|"
                 + X[combination[1]].astype(str)
-                for combination in combinations(self.feature_names, self.combination_size)
+                for combination in combinations(
+                    self.feature_names, self.combination_size
+                )
             }
         )
 
-        print(X.columns)
-        print(X.head())
+    def __get_spad_scores(self, X: pd.Series) -> pd.Series:
 
-        return self
+        """
+        Parameters
+        ----------
+        X : series corresponding to a categorical feature
 
+        Returns
+        -------
+        series where every element is a SPAD score
+        """
 
-class SPAD:
-    """
-    Simple Probabilistic Anomaly Detector
-    """
-
-    @classmethod
-    def get_name(cls):
-        return cls.__name__
-
-    def fit(self, X: pd.DataFrame = None, plus: bool = False):
-
-        X_ = copy.deepcopy(X)
-
-        for pair in combinations(X.columns, 2):
-            X_["+".join(pair)] = X[pair[0]].astype(str) + "|" + X[pair[1]].astype(str)
-
-        print(X_.head())
-
-        self.counts = {c: Counter(X_[c]) for c in X_.columns}
-        self.n = len(X_)
-
-        return self
-
-    def predict(self, X):
-
-        scores = np.zeros(shape=(len(X),))
-
-        for c in X.columns:
-            scores += np.log(
-                X[c]
-                .apply(
-                    lambda x: (self.counts[c].get(x, 0) + 1)
-                    / (self.n + len(self.counts[c]))
-                )
-                .values
+        return np.log(
+            X.apply(
+                lambda _: (self.counts[X.name].get(_, 0) + 1)
+                / (len(X.index) + len(self.counts[X.name]))
             )
-
-        return pd.Series(
-            data=scores, name=f"{self.get_name().lower()}_scores", index=X.index
         )
 
+    def __get_hbos_scores(self, X: pd.Series) -> pd.Series:
 
-class HBOS:
-    """
-    Histogram-Based Outlier Score
-    performs well on global anomaly detection problems but cannot detect local outliers.
+        """
+        Parameters
+        ----------
+        X : series corresponding to a categorical feature
 
-    returns a series of scores; the larger the score the more an outlier
-    """
+        Returns
+        -------
+        series where every element is a HBOS score
+        """
 
-    @classmethod
-    def get_name(cls):
-        return cls.__name__
+        max_count = max(self.counts[X.name].values())
 
-    def fit(self, X: pd.DataFrame = None):
+        return np.log(X.apply(lambda _: max_count / self.counts[X.name].get(_, 1e-10)))
 
-        self.counts = {c: Counter(X[c]) for c in X.columns}
-        self.n = len(X)
+    def fit(self, X: pd.DataFrame) -> "CategoricalHistogramBasedDetector":
+
+        """
+        Parameters
+        ----------
+        X : data frame where every column is a categorical feature
+
+        Returns
+        -------
+        self
+        """
+
+        self.feature_names = sorted(X.columns)
+
+        # create and attach new combined features if required
+        if self.combination_size > 1:
+            X = self.__add_combined_features(X)
+
+        # count how many times each possible value of each feature occurs
+        self.counts: Dict = {c: Counter(X[c]) for c in X.columns}
 
         return self
 
-    def predict(self, X):
+    def predict(self, X: pd.DataFrame) -> pd.Series:
 
-        scores = np.zeros(shape=(len(X),))
+        """
+        Parameters
+        ----------
+        X : data frame where every column is a categorical feature
 
-        for c in X.columns:
+        Returns
+        -------
+        where every element is a score for the corresponding sample
+        """
 
-            max_count_in_c = max(self.counts[c].values())
+        if self.combination_size > 1:
+            X = self.__add_combined_features(X)
 
-            scores += np.log(
-                X[c]
-                .apply(lambda x: max_count_in_c / self.counts[c].get(x, 1e-10))
-                .values
-            )
+        scores = np.zeros(shape=(len(X.index),))
 
-        return pd.Series(
-            data=scores, name=f"{self.get_name().lower()}_scores", index=X.index
-        )
+        if self.score_type == "spad":
+            for c in X.columns:
+                scores += self.__get_spad_scores(X[c])
+
+        elif self.score_type == "hbos":
+            for c in X.columns:
+                scores += self.__get_hbos_scores(X[c])
+
+        return pd.Series(data=scores, name=f"{self.score_type}_scores", index=X.index)
 
 
 if __name__ == "__main__":
@@ -134,28 +143,21 @@ if __name__ == "__main__":
     X_test = data.sample(n_test)
 
     t_start = time.time()
+    chbd = CategoricalHistogramBasedDetector(score_type="hbos", combination_size=1)
+    chbd.fit(X_train)
+    y_pred = chbd.predict(X_test)
 
-    spad = SPAD()
-    spad.fit(X_train)
-    y_pred = spad.predict(X_test)
     print(y_pred)
-
-    print("SPAD")
     print(f"trained on {n_train:,} samples")
     print(f"predictions on {n_test:,} samples")
     print(f"elapsed time: {time.time() - t_start: .4f} sec")
 
     t_start = time.time()
+    chbd = CategoricalHistogramBasedDetector(score_type="spad", combination_size=1)
+    chbd.fit(X_train)
+    y_pred = chbd.predict(X_test)
 
-    hbos = HBOS()
-    hbos.fit(X_train)
-    y_pred = hbos.predict(X_test)
     print(y_pred)
-
-    print("HBOS")
     print(f"trained on {n_train:,} samples")
     print(f"predictions on {n_test:,} samples")
     print(f"elapsed time: {time.time() - t_start: .4f} sec")
-
-    chbd = CategoricalHistogramBasedDetector()
-    print(chbd.fit(X_train))
