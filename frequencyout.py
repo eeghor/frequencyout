@@ -7,9 +7,35 @@ from typing import Literal, Dict
 
 
 class CategoricalHistogramBasedDetector:
+
+    """
+    This anomaly/outlier detector implements two anomaly/outlier methods for
+    samples with categorical features.
+
+     - SPAD: Simple Probabilistic Anomaly Detector proposed in
+             Aryal et al, 2016: Revisiting Attribute Independence Assumption in
+                                Probabilistic Unsupervised Anomaly Detection
+             note: lower score indicate more unusual
+
+     - HBOS: Histogram-Based Outlier Score as described in
+             Goldstein and Dengel, 2012: Histogram-based Outlier Score (HBOS):
+                                         A Fast Unsupervised Anomaly Detection Algorithm
+             note: higher scores mean more unusual
+    """
+
     def __init__(
         self, score_type: Literal["spad", "hbos"] = None, combination_size: int = 2
     ) -> None:
+
+        """
+        Parameters
+        ----------
+        score_type : type of scores to use; spad or hbos
+        combination_size : number of original features to include in each combined feature;
+                           default: 2, i.e. create additional combined feature
+                           from original feature pairs
+
+        """
 
         self.score_type = score_type
         self.combination_size = combination_size
@@ -23,7 +49,7 @@ class CategoricalHistogramBasedDetector:
 
         Returns
         -------
-        original data frame with new columns with combinations
+        original data frame with new columns created from combinations
         of categorical features
         """
 
@@ -96,7 +122,7 @@ class CategoricalHistogramBasedDetector:
 
         return self
 
-    def predict(self, X: pd.DataFrame) -> pd.Series:
+    def score(self, X: pd.DataFrame) -> pd.Series:
 
         """
         Parameters
@@ -105,6 +131,7 @@ class CategoricalHistogramBasedDetector:
 
         Returns
         -------
+        a series indexed like the supplied data frame and named like {spad, hbos}_scores
         where every element is a score for the corresponding sample
         """
 
@@ -137,27 +164,12 @@ if __name__ == "__main__":
     data = pd.read_csv("data/d_.csv.gz", usecols=categorical_columns, dtype=str)
 
     n_train = 1000000
-    n_test = 100000
-
     X_train = data.sample(n_train)
-    X_test = data.sample(n_test)
 
-    t_start = time.time()
-    chbd = CategoricalHistogramBasedDetector(score_type="hbos", combination_size=1)
-    chbd.fit(X_train)
-    y_pred = chbd.predict(X_test)
+    for method in "spad hbos".split():
 
-    print(y_pred)
-    print(f"trained on {n_train:,} samples")
-    print(f"predictions on {n_test:,} samples")
-    print(f"elapsed time: {time.time() - t_start: .4f} sec")
+        t_start = time.time()
+        chbd = CategoricalHistogramBasedDetector(score_type=method, combination_size=2)
+        chbd.fit(X_train)
 
-    t_start = time.time()
-    chbd = CategoricalHistogramBasedDetector(score_type="spad", combination_size=1)
-    chbd.fit(X_train)
-    y_pred = chbd.predict(X_test)
-
-    print(y_pred)
-    print(f"trained on {n_train:,} samples")
-    print(f"predictions on {n_test:,} samples")
-    print(f"elapsed time: {time.time() - t_start: .4f} sec")
+        print(f"{method.upper()}: elapsed time: {time.time() - t_start: .4f} sec / {n_train:,} samples")
