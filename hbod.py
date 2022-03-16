@@ -149,27 +149,3 @@ class CategoricalHistogramBasedDetector:
                 scores += self.__get_hbos_scores(X[c])
 
         return pd.Series(data=scores, name=f"{self.score_type}_scores", index=X.index)
-
-
-if __name__ == "__main__":
-
-    categorical_columns = [
-        "entry_key",
-        "user_key",
-        "location_id",
-        "department_id",
-        "account_name",
-    ]
-
-    data = pd.read_csv("data/d_.csv.gz", usecols=categorical_columns, dtype=str)
-
-    n_train = 1000000
-    X_train = data.sample(n_train)
-
-    for method in "spad hbos".split():
-
-        t_start = time.time()
-        chbd = CategoricalHistogramBasedDetector(score_type=method, combination_size=2)
-        chbd.fit(X_train)
-
-        print(f"{method.upper()}: elapsed time: {time.time() - t_start: .4f} sec / {n_train:,} samples")
