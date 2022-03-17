@@ -106,9 +106,6 @@ class CategoricalHistogramBasedDetector:
         ----------
         X : data frame where every column is a categorical feature
 
-        Returns
-        -------
-        self
         """
 
         self.feature_names = sorted(X.columns)

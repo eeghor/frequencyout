@@ -1,14 +1,44 @@
 import unittest
+import pandas as pd  # type: ignore
+from collections import Counter
+from hbod import CategoricalHistogramBasedDetector
+
 
 class testSomething(unittest.TestCase):
     def test_spad(self):
 
-        chbd = CategoricalHistogramBasedDetector(score_type='spad', combination_size=2)
+        X_train = pd.DataFrame(
+            {
+                "v1": ["a", "a", "b", "a", "a", "c", "b", "b", "c"],
+                "v2": ["c", "a", "c", "c", "a", "b", "c", "c", "a"],
+            }
+        )
+
+        X_test = pd.DataFrame(
+            {
+                "v1": ["a", "a", "b", "c", "a", "b", "c", "c"],
+                "v2": ["b", "a", "c", "b", "c", "b", "c", "a"],
+            }
+        )
+
+        chbd = CategoricalHistogramBasedDetector(score_type="spad", combination_size=2)
         chbd.fit(X_train)
 
-        self.assertTrue(
-            CatFeeder()._is_valid_id(some_id="a4d2cc9d-367a-4ec1-882a-618f34195aa1")
+        X_test_more_to_less_unusual = X_test.assign(
+            scores=chbd.score(X_test)
+        ).sort_values("scores")
+
+        results = [row for row in X_test_more_to_less_unusual.itertuples(index=False)]
+
+        self.assertListEqual(
+            [
+                (results[0].v1, results[0].v2),
+                (results[1].v1, results[1].v2),
+                (results[-1].v1, results[-1].v2),
+            ],
+            [("b", "b"), ("a", "b"), ("b", "c")],
         )
+
 
 if __name__ == "__main__":
     unittest.main()
