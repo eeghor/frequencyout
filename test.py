@@ -6,7 +6,6 @@ from hbod import CategoricalHistogramBasedDetector
 
 class testSomething(unittest.TestCase):
     def test_spad(self):
-
         X_train = pd.DataFrame(
             {
                 "v1": ["a", "a", "b", "a", "a", "c", "b", "b", "c"],
@@ -40,7 +39,6 @@ class testSomething(unittest.TestCase):
         )
 
     def test_hbos(self):
-
         X_train = pd.DataFrame(
             {
                 "v1": ["a", "a", "b", "a", "a", "c", "b", "b", "c"],

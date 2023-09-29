@@ -2,7 +2,6 @@ import pandas as pd  # type:ignore
 import numpy as np  # type:ignore
 from collections import Counter
 from itertools import combinations
-import time
 from typing import Literal, Dict
 
 
@@ -26,7 +25,6 @@ class CategoricalHistogramBasedDetector:
     def __init__(
         self, score_type: Literal["spad", "hbos"] = None, combination_size: int = 2
     ) -> None:
-
         """
         Parameters
         ----------
@@ -41,7 +39,6 @@ class CategoricalHistogramBasedDetector:
         self.combination_size = combination_size
 
     def __add_combined_features(self, X: pd.DataFrame) -> pd.DataFrame:
-
         """
         Parameters
         ----------
@@ -65,7 +62,6 @@ class CategoricalHistogramBasedDetector:
         )
 
     def __get_spad_scores(self, X: pd.Series) -> pd.Series:
-
         """
         Parameters
         ----------
@@ -84,7 +80,6 @@ class CategoricalHistogramBasedDetector:
         )
 
     def __get_hbos_scores(self, X: pd.Series) -> pd.Series:
-
         """
         Parameters
         ----------
@@ -100,7 +95,6 @@ class CategoricalHistogramBasedDetector:
         return np.log(X.apply(lambda _: max_count / self.counts[X.name].get(_, 1e-10)))
 
     def fit(self, X: pd.DataFrame) -> "CategoricalHistogramBasedDetector":
-
         """
         Parameters
         ----------
@@ -120,7 +114,6 @@ class CategoricalHistogramBasedDetector:
         return self
 
     def score(self, X: pd.DataFrame) -> pd.Series:
-
         """
         Parameters
         ----------
